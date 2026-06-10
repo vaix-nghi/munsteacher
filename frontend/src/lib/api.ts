@@ -47,6 +47,10 @@ export const api = {
   },
 };
 
+export async function saveSession(data: SessionPayload): Promise<void> {
+  await api.sessions.save(data);
+}
+
 export type AnswerPayload = {
   question_type: string;
   difficulty: number;

@@ -70,11 +70,14 @@ export default function HomePage() {
         <h1 className="text-3xl font-black text-orange-600">算数コーチ</h1>
         <p className="text-gray-500 text-sm mt-1">さんすう れんしゅう しよう！</p>
         {streak > 0 && (
-          <div className="mt-2 inline-flex items-center gap-1 bg-orange-100 rounded-full px-3 py-1">
-            <span className="text-lg">🔥</span>
-            <span className="text-orange-700 font-bold text-sm">
+          <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 ${streak >= 7 ? "bg-gradient-to-r from-yellow-300 to-orange-400" : "bg-orange-100"}`}>
+            <span className="text-lg">{streak >= 7 ? "🏆" : "🔥"}</span>
+            <span className={`font-bold text-sm ${streak >= 7 ? "text-white" : "text-orange-700"}`}>
               {streak}日 れんぞく！
             </span>
+            {streak >= 7 && (
+              <span className="text-white font-black text-xs ml-1">スーパー！</span>
+            )}
           </div>
         )}
       </motion.div>

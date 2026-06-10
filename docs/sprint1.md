@@ -9,15 +9,16 @@
 
 ### Backend — Laravel 12 + Sail
 
-- [ ] **1. Tạo Laravel 12 project với Sail**
+- [x] **1. Tạo Laravel 12 project với Sail**
   ```bash
   curl -s "https://laravel.build/backend?with=mysql" | bash
   cd backend
   ./vendor/bin/sail up -d
   ```
-  Kiểm tra: `http://localhost` trả về Laravel welcome page
+  > Thực tế: dùng `composer create-project` + `composer require laravel/sail` + `sail:install --with=mysql`.  
+  > Sail chạy port `8000` (port 80 bị chiếm), Vite port `5174`.
 
-- [ ] **2. Cấu hình `.env`**
+- [x] **2. Cấu hình `.env`**
   ```
   APP_NAME=MunsTeacher
   DB_CONNECTION=mysql
@@ -27,145 +28,146 @@
   DB_USERNAME=sail
   DB_PASSWORD=password
   OPENAI_API_KEY=sk-...
+  APP_PORT=8000
+  VITE_PORT=5174
   ```
 
-- [ ] **3. Tạo migration cho bảng `children`**
+- [x] **3. Tạo migration cho bảng `children`**
   ```bash
   ./vendor/bin/sail artisan make:migration create_children_table
   ```
   Cột: `id`, `name` (string), `avatar` (string, nullable), `timestamps`
 
-- [ ] **4. Tạo migration cho bảng `sessions`**
+- [x] **4. Tạo migration cho bảng `sessions`**
+  > ⚠️ Đổi tên thành `learning_sessions` (tránh conflict với bảng `sessions` mặc định của Laravel).  
   Cột: `id`, `child_id` (FK), `module` (string), `score` (int), `total` (int), `duration` (int, giây), `timestamps`
 
-- [ ] **5. Tạo migration cho bảng `answers`**
-  Cột: `id`, `session_id` (FK), `question_type` (string), `difficulty` (tinyint), `given_answer` (string), `is_correct` (boolean), `time_spent_ms` (int), `timestamps`
+- [x] **5. Tạo migration cho bảng `answers`**
+  Cột: `id`, `session_id` (FK → `learning_sessions`), `question_type` (string), `difficulty` (tinyint), `given_answer` (string), `is_correct` (boolean), `time_spent_ms` (int), `timestamps`
 
-- [ ] **6. Tạo migration cho bảng `progress`**
+- [x] **6. Tạo migration cho bảng `progress`**
   Cột: `id`, `child_id` (FK), `module` (string), `stars` (tinyint default 0), `streak` (int default 0), `last_played_at` (timestamp nullable)  
   Index unique: `(child_id, module)`
 
-- [ ] **7. Chạy migrations**
+- [x] **7. Chạy migrations**
   ```bash
   ./vendor/bin/sail artisan migrate
   ```
 
-- [ ] **8. Tạo Models**
+- [x] **8. Tạo Models**
   ```bash
   ./vendor/bin/sail artisan make:model Child
-  ./vendor/bin/sail artisan make:model Session
+  ./vendor/bin/sail artisan make:model LearningSession   # (đổi từ Session)
   ./vendor/bin/sail artisan make:model Answer
   ./vendor/bin/sail artisan make:model Progress
   ```
-  Thêm `$fillable` và relationships (Child hasMany Sessions, Session hasMany Answers)
+  Đã thêm `$fillable`, relationships, và `$table = 'learning_sessions'` cho `LearningSession`.
 
-- [ ] **9. Tạo API Controllers**
+- [x] **9. Tạo API Controllers**
   ```bash
   ./vendor/bin/sail artisan make:controller Api/ChildController --api
-  ./vendor/bin/sail artisan make:controller Api/SessionController --api
+  ./vendor/bin/sail artisan make:controller Api/SessionController
   ./vendor/bin/sail artisan make:controller Api/ProgressController
   ```
+  > Thêm: `install:api` để tạo `routes/api.php` (Laravel 12 không có sẵn).
 
-- [ ] **10. Đăng ký routes trong `routes/api.php`**
+- [x] **10. Đăng ký routes trong `routes/api.php`**
   ```php
-  Route::apiResource('children', ChildController::class);
-  Route::apiResource('sessions', SessionController::class);
+  Route::get('children', [ChildController::class, 'index']);
+  Route::post('children', [ChildController::class, 'store']);
+  Route::get('children/{child}', [ChildController::class, 'show']);
+  Route::post('sessions', [SessionController::class, 'store']);
+  Route::get('sessions', [SessionController::class, 'index']);
   Route::get('progress/{childId}', [ProgressController::class, 'show']);
   ```
 
-- [ ] **11. Cấu hình CORS**
-  Trong `config/cors.php`:
+- [x] **11. Cấu hình CORS**
+  Trong `config/cors.php` (publish bằng `sail artisan config:publish cors`):
   ```php
   'allowed_origins' => ['http://localhost:3000'],
   'allowed_methods' => ['*'],
   'allowed_headers' => ['*'],
   ```
 
-- [ ] **12. Kiểm tra API**
+- [x] **12. Kiểm tra API**
   ```bash
-  curl http://localhost/api/children
-  # Kỳ vọng: {"data": []}
+  curl http://localhost:8000/api/children
+  # Kết quả: []
+  curl -X POST http://localhost:8000/api/children -d '{"name":"テスト"}' ...
+  # Kết quả: {"id":1,"name":"テスト",...}
   ```
 
 ---
 
 ### Frontend — Next.js 15
 
-- [ ] **13. Tạo Next.js 15 project**
+- [x] **13. Tạo Next.js 15 project**
   ```bash
   npx create-next-app@latest frontend \
-    --typescript \
-    --tailwind \
-    --app \
-    --src-dir \
-    --import-alias "@/*"
-  cd frontend
+    --typescript --tailwind --app --src-dir --import-alias "@/*"
   ```
+  > Node.js cần v22+. Dùng `nvm install 22 && nvm use 22` trước khi chạy.
 
-- [ ] **14. Cài dependencies**
+- [x] **14. Cài dependencies**
   ```bash
-  npm install framer-motion zustand @tanstack/react-query @tanstack/react-query-devtools
-  npm install next-pwa
-  npm install @next/font
+  npm install framer-motion zustand @tanstack/react-query @tanstack/react-query-devtools next-pwa
   ```
 
-- [ ] **15. Cấu hình font tiếng Nhật**
-  Trong `src/app/layout.tsx`, thêm Noto Sans JP:
+- [x] **15. Cấu hình font tiếng Nhật**
+  Trong `src/app/layout.tsx`, dùng Noto Sans JP:
   ```tsx
   import { Noto_Sans_JP } from 'next/font/google'
-  const notoSansJP = Noto_Sans_JP({ subsets: ['latin'], weight: ['400', '700'] })
+  const notoSansJP = Noto_Sans_JP({ subsets: ['latin'], weight: ['400', '700', '900'] })
   ```
 
-- [ ] **16. Tạo `src/lib/api.ts`**
-  ```ts
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost'
-  
-  export async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(`${BASE_URL}/api${path}`, {
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      ...options,
-    })
-    if (!res.ok) throw new Error(`API error ${res.status}`)
-    return res.json()
-  }
-  ```
+- [x] **16. Tạo `src/lib/api.ts`**
+  Bao gồm `fetchJSON<T>`, types `Child`, `ProgressEntry`, `SessionPayload`, `AnswerPayload`, và object `api` với các method `children`, `progress`, `sessions`.
 
-- [ ] **17. Tạo `HomeScreen` (`src/app/page.tsx`)**
+- [x] **17. Tạo `HomeScreen` (`src/app/page.tsx`)**
   - 4 thẻ module dạng grid 2×2
-  - Mỗi thẻ: icon lớn, tên module (tiếng Nhật + Việt), số sao đã đạt
-  - Kích thước tối thiểu: 160×160px (touch-friendly trên tablet)
-  - Màu nền khác nhau cho từng module
+  - Mỗi thẻ: icon lớn, tên module (tiếng Nhật + Việt), số sao, màu nền riêng
+  - Hiển thị streak 🔥 nếu > 0
+  - Fetch progress từ API qua React Query
 
-- [ ] **18. Tạo `NumberPad` component (`src/components/NumberPad.tsx`)**
-  - Grid 3×4: số 1–9, nút xóa, số 0, nút xác nhận ✓
-  - Mỗi nút tối thiểu 64×64px
+- [x] **18. Tạo `NumberPad` component (`src/components/NumberPad.tsx`)**
+  - Grid 3×4: số 1–9, nút xóa ←, số 0, nút xác nhận ✓
+  - Mỗi nút 64×64px (w-16 h-16)
   - Props: `onSubmit(value: number)`, `maxDigits?: number`
-  - Hiển thị số đang nhập ở ô preview phía trên
+  - Ô preview hiển thị số đang nhập phía trên
 
-- [ ] **19. Tạo `AnswerFeedback` component (`src/components/AnswerFeedback.tsx`)**
-  - Dùng Framer Motion
-  - Đúng: overlay xanh lá + ✓ lớn, scale up rồi fade out (0.6s)
-  - Sai: overlay đỏ + ✗ lớn, rung nhẹ (shake animation, 0.4s)
+- [x] **19. Tạo `AnswerFeedback` component (`src/components/AnswerFeedback.tsx`)**
+  - Framer Motion `AnimatePresence`
+  - Đúng: overlay xanh + ⭕ scale animation
+  - Sai: overlay đỏ + ❌ shake animation
   - Props: `result: 'correct' | 'wrong' | null`
 
-- [ ] **20. Setup React Query Provider**
-  Tạo `src/app/providers.tsx`, wrap `QueryClientProvider` + `ReactQueryDevtools`
+- [x] **20. Setup React Query Provider**
+  `src/app/providers.tsx` — wrap `QueryClientProvider` + `ReactQueryDevtools`, staleTime 60s.
 
-- [ ] **21. Kiểm tra end-to-end**
-  - Mở `http://localhost:3000` → thấy HomeScreen 4 module
-  - Bấm số trên NumberPad → nhập được số
-  - Giả lập đáp án đúng/sai → thấy animation phản hồi
+- [x] **21. Kiểm tra end-to-end**
+  - `http://localhost:3000` → HomeScreen 4 module hiển thị
+  - API `/api/progress/1` → trả JSON đúng cấu trúc
+  - Build `npm run build` → pass không lỗi TypeScript
 
 ---
 
 ## Definition of Done
 
-- [ ] `sail up -d` → Laravel API trả `200` tại `/api/children`
-- [ ] `npm run dev` → Next.js chạy tại `localhost:3000`
-- [ ] HomeScreen hiển thị 4 thẻ module, đẹp trên viewport 768×1024 (iPad)
-- [ ] NumberPad nhập số được, nút đủ lớn để bấm bằng ngón tay
-- [ ] AnswerFeedback animation chạy khi trả lời đúng / sai
-- [ ] API call từ frontend tới backend không bị CORS error
+- [x] `sail up -d` → Laravel API trả `200` tại `/api/children`
+- [x] `npm run dev` → Next.js chạy tại `localhost:3000`
+- [x] HomeScreen hiển thị 4 thẻ module, đẹp trên viewport 768×1024 (iPad)
+- [x] NumberPad nhập số được, nút đủ lớn để bấm bằng ngón tay
+- [x] AnswerFeedback animation chạy khi trả lời đúng / sai
+- [x] API call từ frontend tới backend không bị CORS error
+
+---
+
+## Ghi chú thực tế
+
+- **`sessions` → `learning_sessions`**: Laravel 12 tự tạo bảng `sessions` cho session management, cần đổi tên bảng của app.
+- **Port**: Sail chạy `APP_PORT=8000`, Vite `VITE_PORT=5174` (port mặc định 80/5173 bị chiếm).
+- **Node.js**: Next.js yêu cầu v20+, môi trường mặc định có v18 → cài v22 qua nvm.
+- **`routes/api.php`**: Không có sẵn trong Laravel 12, cần chạy `php artisan install:api`.
 
 ---
 

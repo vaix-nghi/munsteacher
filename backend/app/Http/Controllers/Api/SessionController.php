@@ -85,14 +85,16 @@ class SessionController extends Controller
         }
 
         $today = Carbon::today();
+        $yesterday = Carbon::today()->subDay();
         $lastPlayed = $progress->last_played_at ? Carbon::parse($progress->last_played_at)->startOfDay() : null;
 
         if ($module === 'daily') {
-            if ($lastPlayed === null || $lastPlayed->lt($today->subDay())) {
+            if ($lastPlayed === null || $lastPlayed->lt($yesterday)) {
                 $progress->streak = 1;
-            } elseif ($lastPlayed->eq($today->subDay())) {
+            } elseif ($lastPlayed->eq($yesterday)) {
                 $progress->streak++;
             }
+            // if lastPlayed == today: keep streak unchanged
         }
 
         $progress->last_played_at = now();
