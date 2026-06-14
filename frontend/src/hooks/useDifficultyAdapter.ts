@@ -18,7 +18,7 @@ export function useDifficultyAdapter(initial: 1 | 2 | 3 = 1) {
     stateRef.current = state;
   }, [state]);
 
-  const recordAnswer = (isCorrect: boolean) => {
+  const recordAnswer = (isCorrect: boolean): 1 | 2 | 3 => {
     const previous = stateRef.current;
     const correctStreak = isCorrect ? previous.correctStreak + 1 : 0;
     const wrongStreak = isCorrect ? 0 : previous.wrongStreak + 1;
