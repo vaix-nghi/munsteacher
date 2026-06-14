@@ -2,11 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { NumberPad } from "@/components/NumberPad";
 import { AnswerFeedback } from "@/components/AnswerFeedback";
-import { generateArithmetic } from "@/lib/questions/mentalMath";
 import { useDifficultyAdapter } from "@/hooks/useDifficultyAdapter";
 import { api, type AnswerPayload } from "@/lib/api";
+import {
+  generateMentalMathQuestion,
+  type GeneratedMentalMathQuestion,
+} from "@/lib/questions/templateBased";
 
 const TOTAL = 10;
 const HINT_DELAY_MS = 10000;
@@ -15,7 +19,13 @@ const DEMO_CHILD_ID = 1;
 export default function MentalMathPage() {
   const router = useRouter();
   const { currentLevel, recordAnswer } = useDifficultyAdapter(1);
-  const [question, setQuestion] = useState(() => generateArithmetic(1));
+  const { data: templates, isError } = useQuery({
+    queryKey: ["templates", DEMO_CHILD_ID, "mental-math"],
+    queryFn: () => api.children.getTemplates(DEMO_CHILD_ID, "mental-math"),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const [currentQuestion, setCurrentQuestion] = useState<GeneratedMentalMathQuestion | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [answered, setAnswered] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -25,6 +35,18 @@ export default function MentalMathPage() {
   const [questionStart, setQuestionStart] = useState(Date.now());
   const [showHint, setShowHint] = useState(false);
 
+  const nextQuestion = useCallback(
+    (difficulty: 1 | 2 | 3) => generateMentalMathQuestion(templates ?? [], difficulty),
+    [templates]
+  );
+
+  useEffect(() => {
+    if (templates || isError) {
+      setCurrentQuestion(nextQuestion(1));
+      setQuestionStart(Date.now());
+    }
+  }, [templates, isError, nextQuestion]);
+
   useEffect(() => {
     setShowHint(false);
     const t = setTimeout(() => setShowHint(true), HINT_DELAY_MS);
@@ -32,15 +54,16 @@ export default function MentalMathPage() {
   }, [questionIndex]);
 
   const handleSubmit = useCallback((value: number) => {
-    if (answered) return;
+    if (answered || !currentQuestion) return;
     setAnswered(true);
-    const isCorrect = value === question.answer;
+    const isCorrect = value === currentQuestion.question.answer;
     setFeedback(isCorrect ? "correct" : "wrong");
-    recordAnswer(isCorrect);
+    const nextLevel = recordAnswer(isCorrect);
 
     const answer: AnswerPayload = {
-      question_type: question.type,
-      difficulty: question.difficulty,
+      template_id: currentQuestion.templateId,
+      question_type: currentQuestion.question.type,
+      difficulty: currentQuestion.question.difficulty,
       given_answer: String(value),
       is_correct: isCorrect,
       time_spent_ms: Date.now() - questionStart,
@@ -69,10 +92,20 @@ export default function MentalMathPage() {
       setAnswers(newAnswers);
       setScore(newScore);
       setQuestionIndex((i) => i + 1);
-      setQuestion(generateArithmetic(currentLevel));
+      setCurrentQuestion(nextQuestion(nextLevel));
       setQuestionStart(Date.now());
     }, 1200);
-  }, [answered, question, questionIndex, score, answers, startTime, questionStart, currentLevel, recordAnswer, router]);
+  }, [answered, currentQuestion, questionIndex, score, answers, startTime, questionStart, recordAnswer, router, nextQuestion]);
+
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-blue-50 text-blue-600 font-bold">
+        よみこみちゅう...
+      </div>
+    );
+  }
+
+  const question = currentQuestion.question;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-blue-50">

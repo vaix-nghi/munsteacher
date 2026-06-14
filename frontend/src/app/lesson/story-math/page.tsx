@@ -1,23 +1,28 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { StoryCard } from "@/components/StoryCard";
 import { AnswerFeedback } from "@/components/AnswerFeedback";
-import { STORIES } from "@/data/stories";
 import { api, type AnswerPayload } from "@/lib/api";
+import {
+  generateStoryQuestionPool,
+  type GeneratedStoryQuestion,
+} from "@/lib/questions/templateBased";
 
 const TOTAL = 8;
 const DEMO_CHILD_ID = 1;
 
-function pickStories(count: number) {
-  const shuffled = [...STORIES].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
-
 export default function StoryMathPage() {
   const router = useRouter();
-  const [storyPool] = useState(() => pickStories(TOTAL));
+  const { data: templates, isError } = useQuery({
+    queryKey: ["templates", DEMO_CHILD_ID, "story-math"],
+    queryFn: () => api.children.getTemplates(DEMO_CHILD_ID, "story-math"),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const [storyPool, setStoryPool] = useState<GeneratedStoryQuestion[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -26,17 +31,25 @@ export default function StoryMathPage() {
   const [startTime] = useState(Date.now());
   const [questionStart, setQuestionStart] = useState(Date.now());
 
-  const story = storyPool[questionIndex];
+  useEffect(() => {
+    if (templates || isError) {
+      setStoryPool(generateStoryQuestionPool(templates ?? [], TOTAL));
+      setQuestionStart(Date.now());
+    }
+  }, [templates, isError]);
+
+  const currentStory = storyPool[questionIndex];
 
   const handleAnswer = useCallback((value: number) => {
-    if (answered) return;
+    if (answered || !currentStory) return;
     setAnswered(true);
-    const isCorrect = value === story.answer;
+    const isCorrect = value === currentStory.story.answer;
     setFeedback(isCorrect ? "correct" : "wrong");
 
     const answer: AnswerPayload = {
-      question_type: story.operation,
-      difficulty: story.difficulty,
+      template_id: currentStory.templateId,
+      question_type: currentStory.story.operation,
+      difficulty: currentStory.story.difficulty,
       given_answer: String(value),
       is_correct: isCorrect,
       time_spent_ms: Date.now() - questionStart,
@@ -67,7 +80,15 @@ export default function StoryMathPage() {
       setQuestionIndex((i) => i + 1);
       setQuestionStart(Date.now());
     }, 1200);
-  }, [answered, story, questionIndex, score, answers, startTime, questionStart, router]);
+  }, [answered, currentStory, questionIndex, score, answers, startTime, questionStart, router]);
+
+  if (!currentStory) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-purple-50 text-purple-600 font-bold">
+        よみこみちゅう...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start px-4 py-8 bg-purple-50">
@@ -91,7 +112,13 @@ export default function StoryMathPage() {
         />
       </div>
 
-      <StoryCard story={story} onAnswer={handleAnswer} />
+      <StoryCard
+        story={currentStory.story}
+        onAnswer={handleAnswer}
+        useOptions={Boolean(currentStory.options?.length)}
+        options={currentStory.options}
+        disabled={answered}
+      />
     </div>
   );
 }

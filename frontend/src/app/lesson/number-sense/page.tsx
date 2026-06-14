@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ObjectDisplay } from "@/components/ObjectDisplay";
 import { AnswerFeedback } from "@/components/AnswerFeedback";
-import { generateNumberSense, type NumberSenseQuestion } from "@/lib/questions/numberSense";
 import { api, type AnswerPayload } from "@/lib/api";
+import {
+  generateNumberSenseQuestion,
+  type GeneratedNumberSenseQuestion,
+} from "@/lib/questions/templateBased";
 
 const TOTAL = 8;
 const DEMO_CHILD_ID = 1;
@@ -13,7 +17,13 @@ const DIFFICULTY: 1 | 2 = 1;
 
 export default function NumberSensePage() {
   const router = useRouter();
-  const [question, setQuestion] = useState<NumberSenseQuestion>(() => generateNumberSense(DIFFICULTY));
+  const { data: templates, isError } = useQuery({
+    queryKey: ["templates", DEMO_CHILD_ID, "number-sense"],
+    queryFn: () => api.children.getTemplates(DEMO_CHILD_ID, "number-sense"),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const [currentQuestion, setCurrentQuestion] = useState<GeneratedNumberSenseQuestion | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [answered, setAnswered] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -22,14 +32,27 @@ export default function NumberSensePage() {
   const [startTime] = useState(Date.now());
   const [questionStart, setQuestionStart] = useState(Date.now());
 
+  const nextQuestion = useCallback(
+    () => generateNumberSenseQuestion(templates ?? [], DIFFICULTY),
+    [templates]
+  );
+
+  useEffect(() => {
+    if (templates || isError) {
+      setCurrentQuestion(nextQuestion());
+      setQuestionStart(Date.now());
+    }
+  }, [templates, isError, nextQuestion]);
+
   const handleAnswer = useCallback((isCorrect: boolean, givenAnswer: string) => {
-    if (answered) return;
+    if (answered || !currentQuestion) return;
     setAnswered(true);
     setFeedback(isCorrect ? "correct" : "wrong");
 
     const answer: AnswerPayload = {
-      question_type: question.type,
-      difficulty: DIFFICULTY,
+      template_id: currentQuestion.templateId,
+      question_type: currentQuestion.question.type,
+      difficulty: currentQuestion.difficulty,
       given_answer: givenAnswer,
       is_correct: isCorrect,
       time_spent_ms: Date.now() - questionStart,
@@ -58,10 +81,20 @@ export default function NumberSensePage() {
       setAnswers(newAnswers);
       setScore(newScore);
       setQuestionIndex((i) => i + 1);
-      setQuestion(generateNumberSense(DIFFICULTY));
+      setCurrentQuestion(nextQuestion());
       setQuestionStart(Date.now());
     }, 1200);
-  }, [answered, question, questionIndex, score, answers, startTime, questionStart, router]);
+  }, [answered, currentQuestion, questionIndex, score, answers, startTime, questionStart, router, nextQuestion]);
+
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-orange-50 text-orange-600 font-bold">
+        よみこみちゅう...
+      </div>
+    );
+  }
+
+  const question = currentQuestion.question;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-orange-50">
