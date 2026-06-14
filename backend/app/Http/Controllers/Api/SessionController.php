@@ -16,30 +16,31 @@ class SessionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'child_id'        => 'required|exists:children,id',
-            'module'          => 'required|string|max:100',
-            'score'           => 'required|integer|min:0',
-            'total'           => 'required|integer|min:1',
-            'duration'        => 'required|integer|min:0',
-            'answers'         => 'array',
+            'child_id' => 'required|exists:children,id',
+            'module' => 'required|string|max:100',
+            'score' => 'required|integer|min:0',
+            'total' => 'required|integer|min:1',
+            'duration' => 'required|integer|min:0',
+            'answers' => 'array',
+            'answers.*.template_id' => 'nullable|exists:question_templates,id',
             'answers.*.question_type' => 'required|string',
-            'answers.*.difficulty'    => 'required|integer|min:1|max:3',
-            'answers.*.given_answer'  => 'required|string',
-            'answers.*.is_correct'    => 'required|boolean',
+            'answers.*.difficulty' => 'required|integer|min:1|max:3',
+            'answers.*.given_answer' => 'required|string',
+            'answers.*.is_correct' => 'required|boolean',
             'answers.*.time_spent_ms' => 'required|integer|min:0',
         ]);
 
         $session = DB::transaction(function () use ($validated) {
             $session = LearningSession::create([
                 'child_id' => $validated['child_id'],
-                'module'   => $validated['module'],
-                'score'    => $validated['score'],
-                'total'    => $validated['total'],
+                'module' => $validated['module'],
+                'score' => $validated['score'],
+                'total' => $validated['total'],
                 'duration' => $validated['duration'],
             ]);
 
-            if (!empty($validated['answers'])) {
-                $answers = array_map(fn ($a) => array_merge($a, [
+            if (! empty($validated['answers'])) {
+                $answers = array_map(fn ($answer) => array_merge($answer, [
                     'session_id' => $session->id,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -74,17 +75,16 @@ class SessionController extends Controller
         );
 
         $stars = match (true) {
-            $score >= $total       => 3,
+            $score >= $total => 3,
             $score >= $total * 0.7 => 2,
             $score >= $total * 0.4 => 1,
-            default                => 0,
+            default => 0,
         };
 
         if ($stars > $progress->stars) {
             $progress->stars = $stars;
         }
 
-        $today = Carbon::today();
         $yesterday = Carbon::today()->subDay();
         $lastPlayed = $progress->last_played_at ? Carbon::parse($progress->last_played_at)->startOfDay() : null;
 
@@ -94,7 +94,6 @@ class SessionController extends Controller
             } elseif ($lastPlayed->eq($yesterday)) {
                 $progress->streak++;
             }
-            // if lastPlayed == today: keep streak unchanged
         }
 
         $progress->last_played_at = now();
