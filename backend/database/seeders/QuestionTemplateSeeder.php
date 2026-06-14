@@ -229,7 +229,6 @@ class QuestionTemplateSeeder extends Seeder
     {
         return collect(range($answer - 2, $answer + 2))
             ->filter(fn (int $value) => $value > 0)
-            ->unique()
             ->values()
             ->all();
     }

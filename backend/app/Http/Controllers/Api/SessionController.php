@@ -39,12 +39,14 @@ class SessionController extends Controller
                 'duration' => $validated['duration'],
             ]);
 
-            if (! empty($validated['answers'])) {
+            $answerPayloads = $validated['answers'] ?? [];
+
+            if ($answerPayloads !== []) {
                 $answers = array_map(fn ($answer) => array_merge($answer, [
                     'session_id' => $session->id,
                     'created_at' => now(),
                     'updated_at' => now(),
-                ]), $validated['answers']);
+                ]), $answerPayloads);
                 Answer::insert($answers);
             }
 

@@ -27,14 +27,20 @@ class DailyChallengeConfig extends Model
 
     public static function resolveForChild(Child $child): self
     {
-        return static::query()
+        $childSpecificConfig = static::query()
+            ->where('child_id', $child->id)
             ->where('is_active', true)
-            ->where(function ($query) use ($child) {
-                $query->where('child_id', $child->id)
-                    ->orWhereNull('child_id');
-            })
-            ->orderByRaw('child_id IS NULL')
-            ->orderByDesc('id')
+            ->latest('id')
+            ->first();
+
+        if ($childSpecificConfig !== null) {
+            return $childSpecificConfig;
+        }
+
+        return static::query()
+            ->whereNull('child_id')
+            ->where('is_active', true)
+            ->latest('id')
             ->first() ?? new self([
                 'child_id' => null,
                 'number_sense_count' => 3,
