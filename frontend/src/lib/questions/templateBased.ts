@@ -7,6 +7,16 @@ type RandomFn = () => number;
 
 type NumberRange = { min: number; max: number };
 
+const DEFAULT_STORY: Story = {
+  id: "fallback-story",
+  text_ja: "りんごが 3つ あります。2つ ふえました。ぜんぶで なんこ？",
+  text_vi: "Có 3 quả táo. Thêm 2 quả nữa. Tất cả có bao nhiêu quả?",
+  answer: 5,
+  operation: "add",
+  image: "apple",
+  difficulty: 1,
+};
+
 export type GeneratedNumberSenseQuestion = {
   templateId?: number;
   difficulty: 1 | 2;
@@ -310,20 +320,22 @@ export function generateMentalMathQuestion(
     };
   }
 
-  const question = (() => {
-    switch (template.question_kind) {
-      case "add":
-        return generateAdditionQuestion(template, rand);
-      case "sub":
-        return generateSubtractionQuestion(template, rand);
-      case "add_missing":
-        return generateMissingAdditionQuestion(template, rand);
-      case "sub_missing":
-        return generateMissingSubtractionQuestion(template, rand);
-      default:
-        return null;
-    }
-  })();
+  let question: MathQuestion | null = null;
+
+  switch (template.question_kind) {
+    case "add":
+      question = generateAdditionQuestion(template, rand);
+      break;
+    case "sub":
+      question = generateSubtractionQuestion(template, rand);
+      break;
+    case "add_missing":
+      question = generateMissingAdditionQuestion(template, rand);
+      break;
+    case "sub_missing":
+      question = generateMissingSubtractionQuestion(template, rand);
+      break;
+  }
 
   return {
     templateId: template.id,
@@ -339,11 +351,11 @@ export function generateStoryQuestion(
 
   if (!template) {
     return {
-      story: pickOne(STORIES, rand),
+      story: STORIES.length > 0 ? pickOne(STORIES, rand) : DEFAULT_STORY,
     };
   }
 
-  const fallbackStory = STORIES[0]!;
+  const fallbackStory = STORIES[0] ?? DEFAULT_STORY;
   const rules = template.rules;
   const possibleAnswers = template.possible_answers;
   const answer = toNumber(possibleAnswers.correct, fallbackStory.answer);
