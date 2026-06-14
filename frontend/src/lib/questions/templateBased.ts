@@ -47,8 +47,9 @@ function shuffle<T>(items: T[], rand: RandomFn = Math.random): T[] {
   return values;
 }
 
-function pickOne<T>(items: T[], rand: RandomFn = Math.random): T {
-  return items[Math.floor(rand() * items.length)]!;
+function pickOne<T>(items: T[], rand: RandomFn = Math.random): T | undefined {
+  if (items.length === 0) return undefined;
+  return items[Math.floor(rand() * items.length)];
 }
 
 function toNumber(value: unknown, fallback: number): number {
@@ -114,7 +115,7 @@ function pickTemplate(
       ? templates
       : templates.filter((template) => template.difficulty === difficulty);
   const candidates = pool.length > 0 ? pool : templates;
-  return candidates.length > 0 ? pickOne(candidates, rand) : undefined;
+  return pickOne(candidates, rand);
 }
 
 function buildStoryOptions(answer: number): number[] {
@@ -157,8 +158,8 @@ export function generateNumberSenseQuestion(
       difficulty,
       question: {
         type: "compare",
-        left: { count: leftCount, emoji: pickOne(emojiPool, rand) },
-        right: { count: rightCount, emoji: pickOne(emojiPool, rand) },
+        left: { count: leftCount, emoji: pickOne(emojiPool, rand) ?? "🍎" },
+        right: { count: rightCount, emoji: pickOne(emojiPool, rand) ?? "🍎" },
       },
     };
   }
@@ -171,7 +172,7 @@ export function generateNumberSenseQuestion(
     question: {
       type: "count",
       count,
-      emoji: pickOne(emojiPool, rand),
+      emoji: pickOne(emojiPool, rand) ?? "🍎",
       options: generateCountOptions(count, template, max, rand),
     },
   };
@@ -351,11 +352,11 @@ export function generateStoryQuestion(
 
   if (!template) {
     return {
-      story: STORIES.length > 0 ? pickOne(STORIES, rand) : DEFAULT_STORY,
+      story: pickOne(STORIES, rand) ?? DEFAULT_STORY,
     };
   }
 
-  const fallbackStory = STORIES[0] ?? DEFAULT_STORY;
+  const fallbackStory = STORIES.length > 0 ? STORIES[0] : DEFAULT_STORY;
   const rules = template.rules;
   const possibleAnswers = template.possible_answers;
   const answer = toNumber(possibleAnswers.correct, fallbackStory.answer);
