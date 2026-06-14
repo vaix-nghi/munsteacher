@@ -31,7 +31,7 @@ export async function fetchJSON<T>(
     });
   } catch {
     throw new ApiError(
-      `Không thể kết nối backend (${BASE_URL}).`,
+      `バックエンドに接続できません / Không thể kết nối backend (${BASE_URL}).`,
       path,
       BASE_URL
     );

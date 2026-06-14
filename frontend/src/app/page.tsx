@@ -91,11 +91,11 @@ export default function HomePage() {
         )}
         {isBackendError && (
           <div className="mt-3 rounded-xl bg-red-100 px-3 py-2 text-xs font-bold text-red-700">
-            ⚠️ Lỗi kết nối backend:
+            ⚠️ バックエンド接続エラー / Lỗi kết nối backend:
             {" "}
             {backendError instanceof ApiError
               ? `${backendError.baseUrl}/api${backendError.path}`
-              : "không xác định"}
+              : "不明 / không xác định"}
           </div>
         )}
       </motion.div>
