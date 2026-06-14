@@ -11,6 +11,11 @@ use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\TemplateAssignmentController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('health', fn () => response()->json([
+    'status' => 'ok',
+    'service' => 'munsteacher-backend',
+]));
+
 Route::get('exercise-types', [ExerciseTypeController::class, 'index']);
 
 Route::get('children', [ChildController::class, 'index']);

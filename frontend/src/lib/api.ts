@@ -1,17 +1,46 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export class ApiError extends Error {
+  status?: number;
+  path: string;
+  baseUrl: string;
+
+  constructor(message: string, path: string, baseUrl: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.path = path;
+    this.baseUrl = baseUrl;
+  }
+}
+
 export async function fetchJSON<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    ...options,
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  const target = `${BASE_URL}/api${path}`;
+
+  let res: Response;
+  try {
+    res = await fetch(target, {
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      ...options,
+    });
+  } catch {
+    throw new ApiError(
+      `Không thể kết nối backend (${BASE_URL}).`,
+      path,
+      BASE_URL
+    );
+  }
+
+  if (!res.ok) {
+    throw new ApiError(`API ${res.status}: ${path}`, path, BASE_URL, res.status);
+  }
+
   return res.json();
 }
 
@@ -65,7 +94,15 @@ export type ProgressEntry = {
   weak: boolean;
 };
 
+export type HealthCheckResponse = {
+  status: "ok";
+  service: string;
+};
+
 export const api = {
+  health: {
+    check: () => fetchJSON<HealthCheckResponse>("/health"),
+  },
   children: {
     list: () => fetchJSON<Child[]>("/children"),
     get: (childId: number) => fetchJSON<Child>(`/children/${childId}`),

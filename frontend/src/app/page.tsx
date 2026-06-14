@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 const MODULES = [
   {
@@ -51,6 +51,15 @@ export default function HomePage() {
     queryFn: () => api.progress.get(DEMO_CHILD_ID),
     retry: false,
   });
+  const {
+    isError: isBackendError,
+    error: backendError,
+  } = useQuery({
+    queryKey: ["backend-health"],
+    queryFn: () => api.health.check(),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const getStars = (moduleId: string) =>
     progress?.find((p) => p.module === moduleId)?.stars ?? 0;
@@ -78,6 +87,15 @@ export default function HomePage() {
             {streak >= 7 && (
               <span className="text-white font-black text-xs ml-1">スーパー！</span>
             )}
+          </div>
+        )}
+        {isBackendError && (
+          <div className="mt-3 rounded-xl bg-red-100 px-3 py-2 text-xs font-bold text-red-700">
+            ⚠️ Lỗi kết nối backend:
+            {" "}
+            {backendError instanceof ApiError
+              ? `${backendError.baseUrl}/api${backendError.path}`
+              : "không xác định"}
           </div>
         )}
       </motion.div>
