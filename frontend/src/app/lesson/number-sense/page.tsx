@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ObjectDisplay } from "@/components/ObjectDisplay";
 import { AnswerFeedback } from "@/components/AnswerFeedback";
 import { api, type AnswerPayload } from "@/lib/api";
+import type { NumberSenseQuestion } from "@/lib/questions/numberSense";
 import {
   generateNumberSenseQuestion,
   type GeneratedNumberSenseQuestion,
