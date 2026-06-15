@@ -19,6 +19,7 @@ class ChildController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'avatar' => 'nullable|string|max:255',
+            'grade' => 'nullable|integer|min:1|max:12',
         ]);
 
         $child = Child::create($validated);

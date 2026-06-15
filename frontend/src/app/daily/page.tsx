@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { generateDailyChallenge, type DailyChallengeQuestion } from "@/lib/questions/dailyChallenge";
+import { useQuery } from "@tanstack/react-query";
+import {
+  generateDailyChallenge,
+  generateDailyChallengeFromSetup,
+  type DailyChallengeQuestion,
+} from "@/lib/questions/dailyChallenge";
 import { ObjectDisplay } from "@/components/ObjectDisplay";
 import { NumberPad } from "@/components/NumberPad";
 import { StoryCard } from "@/components/StoryCard";
@@ -16,7 +21,18 @@ const DEMO_CHILD_ID = 1;
 
 export default function DailyChallengePage() {
   const router = useRouter();
-  const [questions] = useState<DailyChallengeQuestion[]>(() => generateDailyChallenge());
+  const { data: dailySetup, isError } = useQuery({
+    queryKey: ["daily-setup", DEMO_CHILD_ID],
+    queryFn: () => api.children.getDailySetup(DEMO_CHILD_ID),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const questions = useMemo<DailyChallengeQuestion[] | null>(() => {
+    if (dailySetup) return generateDailyChallengeFromSetup(dailySetup);
+    if (isError) return generateDailyChallenge();
+    return null;
+  }, [dailySetup, isError]);
+  const totalTime = dailySetup?.config.total_time_seconds ?? TOTAL_TIME;
   const [questionIndex, setQuestionIndex] = useState(0);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -24,9 +40,21 @@ export default function DailyChallengePage() {
   const [answers, setAnswers] = useState<AnswerPayload[]>([]);
   const [startTime] = useState(Date.now());
   const [questionStart, setQuestionStart] = useState(Date.now());
-  const [remainingSeconds, setRemainingSeconds] = useState(TOTAL_TIME);
+  const [remainingSeconds, setRemainingSeconds] = useState(totalTime);
   const [done, setDone] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+
+  useEffect(() => {
+    setRemainingSeconds(totalTime);
+  }, [totalTime]);
+
+  if (!questions) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-yellow-50 text-yellow-700 font-bold">
+        よみこみちゅう...
+      </div>
+    );
+  }
 
   const total = questions.length;
 
@@ -64,8 +92,14 @@ export default function DailyChallengePage() {
 
     const q = questions[questionIndex];
     const answer: AnswerPayload = {
+      template_id: q.templateId,
       question_type: q.source,
-      difficulty: q.source === 'story-math' ? q.q.difficulty : q.source === 'mental-math' ? q.q.difficulty : 1,
+      difficulty:
+        q.source === "story-math"
+          ? q.q.difficulty
+          : q.source === "mental-math"
+            ? q.q.difficulty
+            : q.difficulty ?? 1,
       given_answer: value,
       is_correct: isCorrect,
       time_spent_ms: Date.now() - questionStart,
@@ -119,7 +153,7 @@ export default function DailyChallengePage() {
       {/* Timer */}
       <div className="w-full max-w-md mb-6">
         <CountdownTimer
-          totalSeconds={TOTAL_TIME}
+          totalSeconds={totalTime}
           remainingSeconds={remainingSeconds}
           onTimeUp={handleTimeUp}
         />
@@ -220,6 +254,9 @@ function QuestionRenderer({
   return (
     <StoryCard
       story={q}
+      useOptions={Boolean(item.options?.length)}
+      options={item.options}
+      disabled={disabled}
       onAnswer={(val) => onAnswer(String(val), val === q.answer)}
     />
   );

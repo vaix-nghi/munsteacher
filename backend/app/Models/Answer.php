@@ -9,6 +9,7 @@ class Answer extends Model
 {
     protected $fillable = [
         'session_id',
+        'template_id',
         'question_type',
         'difficulty',
         'given_answer',
@@ -23,5 +24,10 @@ class Answer extends Model
     public function session(): BelongsTo
     {
         return $this->belongsTo(LearningSession::class, 'session_id');
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(QuestionTemplate::class, 'template_id');
     }
 }

@@ -1,21 +1,87 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export class ApiError extends Error {
+  status?: number;
+  path: string;
+  baseUrl: string;
+
+  constructor(message: string, path: string, baseUrl: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.path = path;
+    this.baseUrl = baseUrl;
+  }
+}
+
 export async function fetchJSON<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    ...options,
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+  const target = `${BASE_URL}/api${path}`;
+
+  let res: Response;
+  try {
+    res = await fetch(target, {
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      ...options,
+    });
+  } catch {
+    throw new ApiError(
+      `バックエンドに接続できません / Không thể kết nối backend (${BASE_URL}).`,
+      path,
+      BASE_URL
+    );
+  }
+
+  if (!res.ok) {
+    throw new ApiError(`API ${res.status}: ${path}`, path, BASE_URL, res.status);
+  }
+
   return res.json();
 }
 
 export type Child = { id: number; name: string; avatar: string | null };
+
+export type ExerciseTypeSlug =
+  | "number-sense"
+  | "mental-math"
+  | "story-math"
+  | "daily";
+
+export type QuestionTemplate = {
+  id: number;
+  exercise_type_id: number;
+  grade: number;
+  difficulty: number;
+  question_kind: string;
+  generation_strategy: "rule_based" | "static";
+  rules: Record<string, unknown>;
+  possible_answers: Record<string, unknown>;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type DailyChallengeConfig = {
+  child_id: number | null;
+  number_sense_count: number;
+  mental_math_count: number;
+  story_math_count: number;
+  total_time_seconds: number;
+  is_active: boolean;
+};
+
+export type DailySetupResponse = {
+  config: DailyChallengeConfig;
+  templates: {
+    number_sense: QuestionTemplate[];
+    mental_math: QuestionTemplate[];
+    story_math: QuestionTemplate[];
+  };
+};
 
 export type ProgressEntry = {
   module: string;
@@ -28,14 +94,35 @@ export type ProgressEntry = {
   weak: boolean;
 };
 
+export type HealthCheckResponse = {
+  status: "ok";
+  service: string;
+};
+
 export const api = {
+  health: {
+    check: () => fetchJSON<HealthCheckResponse>("/health"),
+  },
   children: {
     list: () => fetchJSON<Child[]>("/children"),
+    get: (childId: number) => fetchJSON<Child>(`/children/${childId}`),
     create: (name: string, avatar?: string) =>
       fetchJSON<Child>("/children", {
         method: "POST",
         body: JSON.stringify({ name, avatar }),
       }),
+    getTemplates: (
+      childId: number,
+      exerciseType: ExerciseTypeSlug,
+      difficulty?: number
+    ) =>
+      fetchJSON<QuestionTemplate[]>(
+        `/children/${childId}/templates?exercise_type=${encodeURIComponent(exerciseType)}${
+          difficulty ? `&difficulty=${difficulty}` : ""
+        }`
+      ),
+    getDailySetup: (childId: number) =>
+      fetchJSON<DailySetupResponse>(`/children/${childId}/daily-setup`),
   },
   progress: {
     get: (childId: number) =>
@@ -52,6 +139,7 @@ export async function saveSession(data: SessionPayload): Promise<void> {
 }
 
 export type AnswerPayload = {
+  template_id?: number;
   question_type: string;
   difficulty: number;
   given_answer: string;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type State = {
   currentLevel: 1 | 2 | 3;
@@ -12,18 +12,26 @@ export function useDifficultyAdapter(initial: 1 | 2 | 3 = 1) {
     correctStreak: 0,
     wrongStreak: 0,
   });
+  const stateRef = useRef(state);
 
-  const recordAnswer = (isCorrect: boolean) => {
-    setState((prev) => {
-      const correctStreak = isCorrect ? prev.correctStreak + 1 : 0;
-      const wrongStreak = isCorrect ? 0 : prev.wrongStreak + 1;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-      let level = prev.currentLevel;
-      if (correctStreak >= 3 && level < 3) level = (level + 1) as 1 | 2 | 3;
-      if (wrongStreak >= 2 && level > 1) level = (level - 1) as 1 | 2 | 3;
+  const recordAnswer = (isCorrect: boolean): 1 | 2 | 3 => {
+    const previous = stateRef.current;
+    const correctStreak = isCorrect ? previous.correctStreak + 1 : 0;
+    const wrongStreak = isCorrect ? 0 : previous.wrongStreak + 1;
 
-      return { currentLevel: level, correctStreak, wrongStreak };
-    });
+    let level = previous.currentLevel;
+    if (correctStreak >= 3 && level < 3) level = (level + 1) as 1 | 2 | 3;
+    if (wrongStreak >= 2 && level > 1) level = (level - 1) as 1 | 2 | 3;
+
+    const nextState = { currentLevel: level, correctStreak, wrongStreak };
+    stateRef.current = nextState;
+    setState(nextState);
+
+    return level;
   };
 
   return { ...state, recordAnswer };

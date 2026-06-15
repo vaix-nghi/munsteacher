@@ -9,9 +9,10 @@ type Props = {
   onAnswer: (value: number) => void;
   useOptions?: boolean;
   options?: number[];
+  disabled?: boolean;
 };
 
-export function StoryCard({ story, onAnswer, useOptions = false, options }: Props) {
+export function StoryCard({ story, onAnswer, useOptions = false, options, disabled = false }: Props) {
   return (
     <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden">
       {/* Story text */}
@@ -35,8 +36,9 @@ export function StoryCard({ story, onAnswer, useOptions = false, options }: Prop
             {options.map((opt) => (
               <button
                 key={opt}
+                disabled={disabled}
                 onClick={() => onAnswer(opt)}
-                className="w-20 h-20 bg-white rounded-2xl text-3xl font-black text-gray-700 shadow-md border-4 border-purple-200 active:scale-95 transition-transform hover:border-purple-400"
+                className="w-20 h-20 bg-white rounded-2xl text-3xl font-black text-gray-700 shadow-md border-4 border-purple-200 active:scale-95 transition-transform hover:border-purple-400 disabled:opacity-50"
               >
                 {opt}
               </button>
